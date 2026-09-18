@@ -1,6 +1,177 @@
-/* PublicTxt Search — port of the search-page rules from txt-hugo/assets/css/main.css,
-   scoped under .publictxt-search with the site's palette swapped for Obsidian's variables. */
+/* PublicTxt Search — port of the search-page, chip and card rules from
+   txt-hugo/assets/css/main.css, scoped under .publictxt-search with the
+   site's palette swapped for Obsidian's variables (docs/spec.md → Styling). */
 
 .publictxt-search {
-  padding: 0.5rem 0;
+  --ptx-accent-soft: color-mix(in srgb, var(--interactive-accent) 25%, transparent);
+  --ptx-radius: var(--radius-m);
+  padding: 0.25rem 0 1rem;
 }
+
+.publictxt-search .muted { color: var(--text-muted); }
+.publictxt-search .search-intro { margin: 0 0 1rem; }
+
+/* ---------- Chips ---------- */
+
+.publictxt-search .chip {
+  display: inline-block;
+  background: var(--tag-background);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  color: var(--text-normal);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 0.1rem 0.6rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.publictxt-search .chip:hover { border-color: var(--interactive-accent); color: var(--text-accent); text-decoration: none; }
+.publictxt-search .chip .count { color: var(--text-muted); font-size: 0.7rem; margin-left: 0.35rem; }
+
+.publictxt-search .chip-type {
+  background: var(--background-modifier-hover);
+  color: var(--text-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.publictxt-search .chip-link { font-family: var(--font-monospace); }
+.publictxt-search .bookmark-links { margin-top: 0.4rem; }
+
+.publictxt-search .chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* ---------- Cards ---------- */
+
+.publictxt-search .page-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ptx-radius);
+  padding: 0.9rem 1.1rem;
+}
+.publictxt-search .page-card time { font-size: 0.8rem; }
+
+.publictxt-search .page-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.publictxt-search .page-card-title {
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--text-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+.publictxt-search .page-card-title:hover { text-decoration: underline; }
+
+.publictxt-search .page-card-summary {
+  margin: 0.4rem 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.publictxt-search .page-card .chip-row { margin-top: 0.5rem; }
+
+/* ---------- Search page ---------- */
+
+.publictxt-search .search-form {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+.publictxt-search .search-form input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--background-primary-alt);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ptx-radius);
+  color: var(--text-normal);
+  padding: 0.6rem 0.9rem;
+  font-size: 1rem;
+  height: auto;
+}
+.publictxt-search .search-form input[type="search"]:focus { outline: none; border-color: var(--interactive-accent); box-shadow: none; }
+.publictxt-search .search-form input[type="search"]::placeholder { color: var(--text-muted); }
+
+.publictxt-search .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ptx-radius);
+  color: var(--text-muted);
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  height: auto;
+  box-shadow: none;
+  cursor: pointer;
+}
+.publictxt-search .btn-ghost:hover { border-color: var(--interactive-accent); color: var(--text-accent); background: transparent; }
+
+.publictxt-search .search-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.publictxt-search.is-narrow .search-layout { grid-template-columns: 1fr; }
+
+.publictxt-search .search-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.publictxt-search .filter-group {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ptx-radius);
+  padding: 0.8rem 0.9rem;
+}
+.publictxt-search .side-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+.publictxt-search .filter-group .side-heading .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.publictxt-search .filter-chip {
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  height: auto;
+  box-shadow: none;
+  cursor: pointer;
+}
+.publictxt-search .filter-chip.active {
+  background: var(--ptx-accent-soft);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+.publictxt-search .filter-chip.empty:not(.active) { opacity: 0.45; }
+
+.publictxt-search .result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.publictxt-search .result-list mark {
+  background: var(--text-highlight-bg);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 0.15em;
+}
+.publictxt-search .search-status { margin: 0 0 0.8rem; }
+.publictxt-search .search-more { margin-top: 1rem; }
