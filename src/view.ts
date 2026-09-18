@@ -91,7 +91,7 @@ export class SearchView extends ItemView {
   setSearch(state: Partial<SearchState>): void {
     this.state = toSearchState(state);
     if (this.inputEl) this.inputEl.value = this.state.q;
-    this.run();
+    this.stateChanged();
   }
 
   // ---- layout (from txt-hugo/layouts/search.html) ------------------------------
@@ -118,7 +118,7 @@ export class SearchView extends ItemView {
       this.inputTimer = window.setTimeout(() => {
         this.inputTimer = null;
         this.state.q = this.inputEl?.value ?? "";
-        this.run();
+        this.stateChanged();
       }, INPUT_DEBOUNCE_MS);
     });
     const clear = form.createEl("button", { cls: "btn-ghost", text: "Clear all", type: "button" });
@@ -150,7 +150,8 @@ export class SearchView extends ItemView {
       this.resizeObserver.observe(this.contentEl);
     }
 
-    this.registerEvent(this.plugin.indexEvents.on("changed", () => this.run()));
+    // An index change re-runs the same search in place: as many cards as were showing, no scroll reset.
+    this.registerEvent(this.plugin.indexEvents.on("changed", () => this.run({ keepShown: true })));
     this.run();
     if (!this.state.q) this.inputEl.focus();
   }
@@ -178,7 +179,7 @@ export class SearchView extends ItemView {
     b.addEventListener("click", () => {
       if (kind === "type") {
         this.state.type = this.state.type === name ? "" : name;
-        this.run();
+        this.stateChanged();
       } else this.toggleTag(name);
     });
     return b;
@@ -203,24 +204,35 @@ export class SearchView extends ItemView {
     const i = this.state.tags.indexOf(t);
     if (i === -1) this.state.tags.push(t);
     else this.state.tags.splice(i, 1);
-    this.run();
+    this.stateChanged();
   }
 
   /** The "Clear all" button: reset everything and focus the input. */
   clear(): void {
     this.state = emptySearchState();
     if (this.inputEl) this.inputEl.value = "";
-    this.run();
+    this.stateChanged();
     this.inputEl?.focus();
   }
 
-  run(): void {
-    if (!this.listEl || !this.statusEl || !this.moreEl) return;
+  /** The user changed the search: re-run it and have the workspace layout record it. */
+  private stateChanged(): void {
+    this.run();
     this.app.workspace.requestSaveLayout();
+  }
+
+  /**
+   * Run the current search and redraw. With `keepShown`, as many cards as were
+   * already showing are drawn again, so a live index update behind an expanded
+   * list does not collapse it back to the first batch.
+   */
+  run(opts: { keepShown?: boolean } = {}): void {
+    if (!this.listEl || !this.statusEl || !this.moreEl) return;
     if (!this.plugin.indexReady) {
       this.statusEl.setText("Indexing…");
       return;
     }
+    const wanted = opts.keepShown && this.shown > 0 ? this.shown : this.plugin.settings.resultsPerBatch;
     const res = this.plugin.index.search(this.state);
     this.current = res.hits;
     this.hasQuery = res.hasQuery;
@@ -232,12 +244,16 @@ export class SearchView extends ItemView {
       .filter(Boolean)
       .join(" · ");
     this.statusEl.setText(`${n} page${n === 1 ? "" : "s"}` + (what ? ` — ${what}` : ""));
-    this.showMore();
+    this.appendCards(wanted);
   }
 
   showMore(): void {
+    this.appendCards(this.plugin.settings.resultsPerBatch);
+  }
+
+  private appendCards(count: number): void {
     if (!this.listEl || !this.moreEl) return;
-    const batch = this.current.slice(this.shown, this.shown + this.plugin.settings.resultsPerBatch);
+    const batch = this.current.slice(this.shown, this.shown + count);
     for (const hit of batch) this.listEl.appendChild(this.resultCard(hit));
     this.shown += batch.length;
     this.moreEl.hidden = this.shown >= this.current.length;
