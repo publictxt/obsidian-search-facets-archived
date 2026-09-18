@@ -52,6 +52,8 @@ export class PageIndex {
   private pages = new Map<string, PageItem>();
   /** Facet totals across the whole index — what `pagefind.filters()` returns. */
   totals: Counts = { type: {}, tag: {} };
+  /** Chip order: `sortedKeys` of the totals, computed once per index change rather than per render. */
+  sortedTotals: { type: string[]; tag: string[] } = { type: [], tag: [] };
 
   constructor() {
     this.mini = new MiniSearch<PageItem>({
@@ -102,10 +104,12 @@ export class PageIndex {
     this.mini.removeAll();
     this.pages.clear();
     this.totals = { type: {}, tag: {} };
+    this.sortedTotals = { type: [], tag: [] };
   }
 
   recomputeTotals(): void {
     this.totals = countFacets(this.pages.values());
+    this.sortedTotals = { type: sortedKeys(this.totals.type), tag: sortedKeys(this.totals.tag) };
   }
 
   search(state: SearchState): SearchResults {
