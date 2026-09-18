@@ -249,7 +249,7 @@ export class SearchView extends ItemView {
     const li = card(item, {
       activeTags: new Set(this.state.tags),
       onTag: (t) => this.toggleTag(t),
-      summaryHTML: this.hasQuery ? excerpt(item.body, hit.terms) : "",
+      excerpt: this.hasQuery ? excerpt(item.body, hit.terms) : [],
     });
 
     const title = li.querySelector<HTMLAnchorElement>("a.page-card-title");

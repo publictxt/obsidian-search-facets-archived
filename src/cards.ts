@@ -1,8 +1,10 @@
-// Port of txt-hugo/assets/js/cards.js, function for function. Takes the item
-// shape of the site's index.json; `tagURL` and the link branch of `tagChip`
-// are dropped because every tag chip here is a filter button.
+// Port of txt-hugo/assets/js/cards.js: the same card, built with DOM calls
+// instead of an HTML string so no text from the vault is ever parsed as
+// markup. `tagURL` and the link branch of `tagChip` are dropped because
+// every tag chip here is a filter button.
 
 import type { PageItem } from "./derive.ts";
+import type { Segment } from "./excerpt.ts";
 
 export type CardItem = Pick<
   PageItem,
@@ -14,18 +16,14 @@ export interface CardOptions {
   activeTags?: Set<string>;
   /** Called with the tag name when a tag chip is clicked. */
   onTag?: (name: string) => void;
-  /** Pre-rendered HTML (a search excerpt with <mark>) in place of item.summary. */
-  summaryHTML?: string;
-}
-
-const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-
-export function escapeHTML(s: unknown): string {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c] ?? c);
+  /** A search excerpt, shown in place of item.summary when non-empty. */
+  excerpt?: Segment[];
 }
 
 const DAY = 86400e3;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Tag chips shown per card, as on the site. */
+export const CARD_TAGS = 6;
 
 /** "2 Jan 2006", the same form Hugo's page-date.html renders. */
 export function formatDate(iso: string): string {
@@ -34,13 +32,8 @@ export function formatDate(iso: string): string {
 }
 
 /** Same rule as page-date.html: show "updated" only when it is more than a day after "created". */
-export function dateHTML(item: Pick<CardItem, "created" | "updated">): string {
-  if (!item.created) return "";
-  let html = `<time class="muted" datetime="${escapeHTML(item.created)}">${escapeHTML(formatDate(item.created))}</time>`;
-  if (item.updated && new Date(item.updated).getTime() - new Date(item.created).getTime() > DAY) {
-    html += ` <span class="muted">· updated <time datetime="${escapeHTML(item.updated)}">${escapeHTML(formatDate(item.updated))}</time></span>`;
-  }
-  return html;
+export function showUpdated(item: Pick<CardItem, "created" | "updated">): boolean {
+  return !!item.updated && new Date(item.updated).getTime() - new Date(item.created).getTime() > DAY;
 }
 
 /** Same as bookmark-label.html: scheme, www. and trailing slash dropped. */
@@ -56,36 +49,58 @@ export function bookmarkLabel(url: string): string {
 export function card(item: CardItem, opts: CardOptions = {}): HTMLLIElement {
   const li = document.createElement("li");
   li.className = "page-card";
-  const tags = item.tags || [];
-  const active = opts.activeTags || new Set<string>();
-  const tagChip = (t: string) =>
-    `<button type="button" class="chip filter-chip${active.has(t) ? " active" : ""}" data-tag="${escapeHTML(t)}" aria-pressed="${active.has(t)}">#${escapeHTML(t)}</button>`;
-  li.innerHTML = `
-    <div class="page-card-head">
-      <a class="page-card-title" href="#">${escapeHTML(item.title || item.url)}</a>
-      ${item.type ? `<span class="chip chip-type">${escapeHTML(item.type)}</span>` : ""}
-    </div>
-    ${dateHTML(item)}
-    ${
-      (item.bookmarks || []).length
-        ? `<div class="chip-row bookmark-links">${item.bookmarks
-            .map((u) => `<a class="chip chip-link" href="${escapeHTML(u)}" rel="noopener external" target="_blank">${escapeHTML(bookmarkLabel(u))}</a>`)
-            .join("")}</div>`
-        : ""
+  const active = opts.activeTags ?? new Set<string>();
+
+  const head = li.createDiv({ cls: "page-card-head" });
+  head.createEl("a", { cls: "page-card-title", href: "#", text: item.title || item.url });
+  if (item.type) head.createSpan({ cls: "chip chip-type", text: item.type });
+
+  if (item.created) {
+    li.createEl("time", { cls: "muted", text: formatDate(item.created), attr: { datetime: item.created } });
+    if (showUpdated(item)) {
+      li.appendText(" ");
+      const span = li.createSpan({ cls: "muted", text: "· updated " });
+      span.createEl("time", { text: formatDate(item.updated), attr: { datetime: item.updated } });
     }
-    ${
-      opts.summaryHTML
-        ? `<p class="page-card-summary">${opts.summaryHTML}</p>`
-        : item.summary
-          ? `<p class="page-card-summary">${escapeHTML(item.summary)}</p>`
-          : ""
+  }
+
+  const bookmarks = item.bookmarks ?? [];
+  if (bookmarks.length) {
+    const row = li.createDiv({ cls: "chip-row bookmark-links" });
+    for (const u of bookmarks) {
+      row.createEl("a", {
+        cls: "chip chip-link",
+        href: u,
+        text: bookmarkLabel(u),
+        attr: { rel: "noopener external", target: "_blank" },
+      });
     }
-    ${tags.length ? `<div class="chip-row">${tags.slice(0, 6).map(tagChip).join("")}</div>` : ""}`;
-  if (opts.onTag) {
-    const onTag = opts.onTag;
-    li.querySelectorAll<HTMLElement>("[data-tag]").forEach((b) =>
-      b.addEventListener("click", () => onTag(b.dataset.tag ?? "")),
-    );
+  }
+
+  if (opts.excerpt?.length) {
+    const p = li.createEl("p", { cls: "page-card-summary" });
+    for (const s of opts.excerpt) {
+      if (s.mark) p.createEl("mark", { text: s.text });
+      else p.appendText(s.text);
+    }
+  } else if (item.summary) {
+    li.createEl("p", { cls: "page-card-summary", text: item.summary });
+  }
+
+  const tags = (item.tags ?? []).slice(0, CARD_TAGS);
+  if (tags.length) {
+    const row = li.createDiv({ cls: "chip-row" });
+    for (const t of tags) {
+      const on = active.has(t);
+      const b = row.createEl("button", {
+        cls: ["chip", "filter-chip", ...(on ? ["active"] : [])],
+        type: "button",
+        text: "#" + t,
+        attr: { "data-tag": t, "aria-pressed": String(on) },
+      });
+      const onTag = opts.onTag;
+      if (onTag) b.addEventListener("click", () => onTag(t));
+    }
   }
   return li;
 }
