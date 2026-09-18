@@ -3,7 +3,7 @@ import { registerCommands } from "./commands.ts";
 import { derivePage, isPage, type PageItem } from "./derive.ts";
 import { PageIndex } from "./index.ts";
 import { PublicTxtSearchSettingTab } from "./settings-tab.ts";
-import { DEFAULT_SETTINGS, type PublicTxtSearchSettings } from "./settings.ts";
+import { DEFAULT_SETTINGS, normalizeSettings, type PublicTxtSearchSettings } from "./settings.ts";
 import { SearchView, VIEW_TYPE } from "./view.ts";
 
 const READ_BATCH = 64;
@@ -58,7 +58,7 @@ export default class PublicTxtSearchPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = normalizeSettings(await this.loadData());
   }
 
   async saveSettings(): Promise<void> {
@@ -67,12 +67,21 @@ export default class PublicTxtSearchPlugin extends Plugin {
 
   // ---- index ------------------------------------------------------------------
 
-  /** The page record for a vault file, or null when it is not a page. */
+  /**
+   * The page record for a vault file, or null when it is not a page. A file
+   * that cannot be read or derived is logged and skipped rather than allowed
+   * to abort a whole index build.
+   */
   async pageFor(file: TFile): Promise<PageItem | null> {
     if (!isPage(file, this.settings.excludedFolders)) return null;
-    const text = await this.app.vault.cachedRead(file);
-    const cache = this.app.metadataCache.getFileCache(file);
-    return derivePage(file, cache, text, { includeInlineTags: this.settings.includeInlineTags });
+    try {
+      const text = await this.app.vault.cachedRead(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      return derivePage(file, cache, text, { includeInlineTags: this.settings.includeInlineTags });
+    } catch (err) {
+      console.error(`PublicTxt Search: could not index ${file.path}`, err);
+      return null;
+    }
   }
 
   /** Index every page in the vault from scratch. */
