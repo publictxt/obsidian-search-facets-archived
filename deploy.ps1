@@ -38,4 +38,4 @@ foreach ($f in "main.js", "manifest.json", "styles.css") {
     if (Test-Path $src) { Copy-Item $src $target -Force }
 }
 
-Write-Host "Deployed $id $($manifest.version) to $target"
+Write-Host "Deployed $id $($manifest.version) to $([System.IO.Path]::GetFullPath($target))"
