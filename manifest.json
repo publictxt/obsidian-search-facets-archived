@@ -1,0 +1,10 @@
+{
+  "id": "publictxt-search",
+  "name": "PublicTxt Search",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Full-text search with type and tag facets, mirroring the PublicTxt-Hugo search page.",
+  "author": "Jaysen Naidoo",
+  "authorUrl": "https://github.com/jaysen",
+  "isDesktopOnly": false
+}
