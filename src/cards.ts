@@ -48,7 +48,11 @@ export function bookmarkLabel(url: string): string {
   return "↗ " + url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 }
 
-/** A page card. Behaviour beyond tag chips (opening the note, hover preview) is attached by the view. */
+/**
+ * A page card. Behaviour beyond tag chips (opening the note, hover preview) is
+ * attached by the view; the title link carries no real href, since a vault path
+ * is not a URL the app could navigate to.
+ */
 export function card(item: CardItem, opts: CardOptions = {}): HTMLLIElement {
   const li = document.createElement("li");
   li.className = "page-card";
@@ -58,7 +62,7 @@ export function card(item: CardItem, opts: CardOptions = {}): HTMLLIElement {
     `<button type="button" class="chip filter-chip${active.has(t) ? " active" : ""}" data-tag="${escapeHTML(t)}" aria-pressed="${active.has(t)}">#${escapeHTML(t)}</button>`;
   li.innerHTML = `
     <div class="page-card-head">
-      <a class="page-card-title" href="${escapeHTML(item.url)}">${escapeHTML(item.title || item.url)}</a>
+      <a class="page-card-title" href="#">${escapeHTML(item.title || item.url)}</a>
       ${item.type ? `<span class="chip chip-type">${escapeHTML(item.type)}</span>` : ""}
     </div>
     ${dateHTML(item)}

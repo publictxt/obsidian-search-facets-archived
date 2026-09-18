@@ -1,4 +1,4 @@
-import { ItemView, type HoverPopover, type PaneType, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
+import { ItemView, TFile, type HoverPopover, type PaneType, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { card } from "./cards.ts";
 import { normalizeTag } from "./derive.ts";
 import { excerpt } from "./excerpt.ts";
@@ -256,7 +256,13 @@ export class SearchView extends ItemView {
     if (title) {
       title.addEventListener("click", (e) => {
         e.preventDefault();
-        this.openNote(item.path, e);
+        this.openNote(item.path, e.ctrlKey || e.metaKey ? "tab" : paneFor(this.plugin.settings.openIn));
+      });
+      // Middle-click opens a new tab, as it would for a link in a browser.
+      title.addEventListener("auxclick", (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        this.openNote(item.path, "tab");
       });
       title.addEventListener("mouseover", (event) => {
         this.app.workspace.trigger("hover-link", {
@@ -279,8 +285,13 @@ export class SearchView extends ItemView {
     return li;
   }
 
-  private openNote(path: string, e: MouseEvent): void {
-    const pane: PaneType | false = e.ctrlKey || e.metaKey ? "tab" : paneFor(this.plugin.settings.openIn);
-    void this.app.workspace.openLinkText(path, "", pane);
+  /**
+   * Open the note by its file, not by link text: openLinkText would read `#`,
+   * `^` and `|` in a file name as heading, block and alias separators.
+   */
+  private openNote(path: string, pane: PaneType | false): void {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) return;
+    void this.app.workspace.getLeaf(pane).openFile(file);
   }
 }
