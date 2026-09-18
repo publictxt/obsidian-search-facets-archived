@@ -1,4 +1,5 @@
 import { Events, Plugin, TFile, TFolder, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
+import { registerCommands } from "./commands.ts";
 import { derivePage, isPage, type PageItem } from "./derive.ts";
 import { PageIndex } from "./index.ts";
 import { DEFAULT_SETTINGS, PublicTxtSearchSettingTab, type PublicTxtSearchSettings } from "./settings.ts";
@@ -38,6 +39,8 @@ export default class PublicTxtSearchPlugin extends Plugin {
         void this.activateView();
       },
     });
+
+    registerCommands(this);
 
     this.app.workspace.onLayoutReady(() => {
       void this.buildIndex();
