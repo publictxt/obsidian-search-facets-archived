@@ -12,6 +12,9 @@ const UPDATE_DEBOUNCE_MS = 300;
 /** Totals are recomputed once after a burst of updates. */
 const TOTALS_DEBOUNCE_MS = 100;
 
+/** A macrotask boundary, so pending input and paint get a turn. */
+const yieldToEventLoop = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
 export default class PublicTxtSearchPlugin extends Plugin {
   settings: PublicTxtSearchSettings = DEFAULT_SETTINGS;
   index = new PageIndex();
@@ -21,6 +24,8 @@ export default class PublicTxtSearchPlugin extends Plugin {
 
   private pendingUpdates = new Map<string, number>();
   private totalsTimer: number | null = null;
+  /** Bumped by every buildIndex call so a superseded build stops and stays quiet. */
+  private buildGeneration = 0;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -84,14 +89,23 @@ export default class PublicTxtSearchPlugin extends Plugin {
     }
   }
 
-  /** Index every page in the vault from scratch. */
+  /**
+   * Index every page in the vault from scratch. The work is done in batches
+   * with a real yield to the event loop between them (cachedRead resolves from
+   * cache via microtasks, which never let the UI paint), and a build that is
+   * overtaken by a newer one stops without touching the index again.
+   */
   async buildIndex(): Promise<void> {
+    const generation = ++this.buildGeneration;
     this.indexReady = false;
     this.index.clear();
     const files = this.app.vault.getMarkdownFiles();
     for (let i = 0; i < files.length; i += READ_BATCH) {
       const items = await Promise.all(files.slice(i, i + READ_BATCH).map((f) => this.pageFor(f)));
+      if (generation !== this.buildGeneration) return;
       for (const item of items) if (item) this.index.put(item);
+      if (i + READ_BATCH < files.length) await yieldToEventLoop();
+      if (generation !== this.buildGeneration) return;
     }
     this.index.recomputeTotals();
     this.indexReady = true;
