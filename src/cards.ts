@@ -77,15 +77,8 @@ export function card(item: CardItem, opts: CardOptions = {}): HTMLLIElement {
     }
   }
 
-  if (opts.excerpt?.length) {
-    const p = li.createEl("p", { cls: "page-card-summary" });
-    for (const s of opts.excerpt) {
-      if (s.mark) p.createEl("mark", { text: s.text });
-      else p.appendText(s.text);
-    }
-  } else if (item.summary) {
-    li.createEl("p", { cls: "page-card-summary", text: item.summary });
-  }
+  if (opts.excerpt?.length) fillSummary(li.createEl("p", { cls: "page-card-summary" }), opts.excerpt);
+  else if (item.summary) li.createEl("p", { cls: "page-card-summary", text: item.summary });
 
   const tags = (item.tags ?? []).slice(0, CARD_TAGS);
   if (tags.length) {
@@ -103,4 +96,28 @@ export function card(item: CardItem, opts: CardOptions = {}): HTMLLIElement {
     }
   }
   return li;
+}
+
+function fillSummary(p: HTMLElement, segments: Segment[]): void {
+  p.empty();
+  for (const s of segments) {
+    if (s.mark) p.createEl("mark", { text: s.text });
+    else p.appendText(s.text);
+  }
+}
+
+/**
+ * Swap a card's summary for an excerpt that arrived after the card was drawn
+ * (the body is read from the vault on demand). Nothing happens for an empty
+ * excerpt, so the summary stays as the fallback.
+ */
+export function setExcerpt(li: HTMLElement, segments: Segment[]): void {
+  if (!segments.length) return;
+  let p = li.querySelector<HTMLElement>(":scope > p.page-card-summary");
+  if (!p) {
+    p = document.createElement("p");
+    p.className = "page-card-summary";
+    li.insertBefore(p, li.querySelector(":scope > .chip-row:not(.bookmark-links)"));
+  }
+  fillSummary(p, segments);
 }

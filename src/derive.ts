@@ -298,6 +298,19 @@ export function deriveDates(
 
 // ---- the whole record ---------------------------------------------------------
 
+/**
+ * The plain text of a note: front matter removed, the title heading removed
+ * when the title came from it, markdown stripped. What the index searches
+ * and what excerpts are cut from; recomputed on demand for excerpts because
+ * the index does not keep it.
+ */
+export function deriveBody(text: string, cache: CachedMetadata | null | undefined, basename: string): string {
+  const { fromH1 } = deriveTitle(cache?.frontmatter, cache, basename);
+  let { body } = splitFrontMatter(text);
+  if (fromH1) body = removeFirstH1(body);
+  return plainText(body);
+}
+
 export function derivePage(
   file: FileInfo,
   cache: CachedMetadata | null | undefined,
@@ -305,10 +318,8 @@ export function derivePage(
   opts: DeriveOptions,
 ): PageItem {
   const fm = cache?.frontmatter;
-  const { title, fromH1 } = deriveTitle(fm, cache, file.basename);
-  let { body } = splitFrontMatter(text);
-  if (fromH1) body = removeFirstH1(body);
-  const plain = plainText(body);
+  const { title } = deriveTitle(fm, cache, file.basename);
+  const plain = deriveBody(text, cache, file.basename);
   const { created, updated } = deriveDates(fm, file.path, file.stat);
   return {
     path: file.path,

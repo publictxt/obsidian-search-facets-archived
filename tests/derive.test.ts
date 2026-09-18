@@ -5,6 +5,7 @@ import { fakeCache, fileInfo } from "./helpers/fake-cache.ts";
 import {
   dateFromPath,
   dateOnlyToISO,
+  deriveBody,
   deriveDates,
   derivePage,
   deriveTags,
@@ -181,6 +182,13 @@ describe("summary and body", () => {
     assert.ok(!p.body.includes("```"));
     assert.ok(!p.body.includes("sh a hashtag"));
   });
+  test("deriveBody gives the same text derivePage indexed", () => {
+    const text = fixture("Cosmology.md");
+    const p = derive("wiki/Science/Cosmology.md", text);
+    assert.equal(deriveBody(text, fakeCache(text), "Cosmology"), p.body);
+    assert.ok(!p.body.includes("# Cosmology"));
+  });
+
   test("plainText handles wikilinks, embeds, headings, lists, quotes, tables", () => {
     const md = "## Head\n> quote\n- [ ] task [[Note|alias]] ![[img.png]]\n1. one\n\n| a | b |\n|---|---|\n| c | d |\n<b>html</b> ~~gone~~ snake_case";
     assert.equal(plainText(md), "Head quote task alias img.png one a b c d html gone snake_case");
