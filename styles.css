@@ -1,0 +1,6 @@
+/* PublicTxt Search — port of the search-page rules from txt-hugo/assets/css/main.css,
+   scoped under .publictxt-search with the site's palette swapped for Obsidian's variables. */
+
+.publictxt-search {
+  padding: 0.5rem 0;
+}
