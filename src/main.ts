@@ -2,7 +2,8 @@ import { Events, Plugin, TFile, TFolder, type TAbstractFile, type WorkspaceLeaf 
 import { registerCommands } from "./commands.ts";
 import { derivePage, isPage, type PageItem } from "./derive.ts";
 import { PageIndex } from "./index.ts";
-import { DEFAULT_SETTINGS, PublicTxtSearchSettingTab, type PublicTxtSearchSettings } from "./settings.ts";
+import { PublicTxtSearchSettingTab } from "./settings-tab.ts";
+import { DEFAULT_SETTINGS, type PublicTxtSearchSettings } from "./settings.ts";
 import { SearchView, VIEW_TYPE } from "./view.ts";
 
 const READ_BATCH = 64;
