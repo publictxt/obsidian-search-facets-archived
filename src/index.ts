@@ -47,9 +47,14 @@ export function emptySearchState(): SearchState {
   return { q: "", type: "", tags: [] };
 }
 
+/** Fuzzy matching below this many characters is too loose: one edit on a four-letter term matches half the vocabulary. */
+const FUZZY_MIN_LENGTH = 5;
+
 export class PageIndex {
   private mini: MiniSearch<PageItem>;
   private pages = new Map<string, PageItem>();
+  /** `updated` as a number per path, parsed once at put() rather than n·log n times per filter-only sort. */
+  private updatedMs = new Map<string, number>();
   /** Facet totals across the whole index — what `pagefind.filters()` returns. */
   totals: Counts = { type: {}, tag: {} };
   /** Chip order: `sortedKeys` of the totals, computed once per index change rather than per render. */
@@ -63,8 +68,7 @@ export class PageIndex {
       searchOptions: {
         boost: { title: 3 },
         prefix: true,
-        // Fuzzy matching on two- or three-letter terms is too loose to be useful.
-        fuzzy: (term) => (term.length >= 4 ? 0.2 : false),
+        fuzzy: (term) => (term.length >= FUZZY_MIN_LENGTH ? 0.2 : false),
         combineWith: "AND",
       },
     });
@@ -91,18 +95,21 @@ export class PageIndex {
     if (this.pages.has(item.path)) this.mini.replace(item);
     else this.mini.add(item);
     this.pages.set(item.path, item);
+    this.updatedMs.set(item.path, parseTime(item.updated));
   }
 
   remove(path: string): boolean {
     if (!this.pages.has(path)) return false;
     this.mini.discard(path);
     this.pages.delete(path);
+    this.updatedMs.delete(path);
     return true;
   }
 
   clear(): void {
     this.mini.removeAll();
     this.pages.clear();
+    this.updatedMs.clear();
     this.totals = { type: {}, tag: {} };
     this.sortedTotals = { type: [], tag: [] };
   }
@@ -133,9 +140,10 @@ export class PageIndex {
         });
     } else {
       // Filter-only: every matching page, most recently updated first.
+      const ms = (it: PageItem) => this.updatedMs.get(it.path) ?? Number.NEGATIVE_INFINITY;
       hits = this.all()
         .filter(matches)
-        .sort((a, b) => parseTime(b.updated) - parseTime(a.updated) || a.title.localeCompare(b.title))
+        .sort((a, b) => ms(b) - ms(a) || a.title.localeCompare(b.title))
         .map((item) => ({ item, terms: [] }));
     }
     return { hits, counts: countFacets(hits.map((h) => h.item)), hasQuery };

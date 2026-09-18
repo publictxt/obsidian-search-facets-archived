@@ -77,14 +77,21 @@ describe("PageIndex", () => {
     assert.deepEqual(ix.search({ q: "brain", type: "", tags: ["mind"] }).hits.map((h) => h.item.path), ["wiki/mind.md"]);
   });
 
-  test("all terms must match; prefix matches; fuzzy only from four letters", () => {
+  test("all terms must match; prefix matches; fuzzy only from five letters", () => {
     const ix = build();
     assert.equal(ix.search({ q: "brain thinks", type: "", tags: [] }).hits.length, 1);
     assert.equal(ix.search({ q: "brain hello", type: "", tags: [] }).hits.length, 0);
     assert.equal(ix.search({ q: "bra", type: "", tags: [] }).hits.length, 2);
-    assert.equal(ix.search({ q: "brein", type: "", tags: [] }).hits.length, 2); // one edit away
+    assert.equal(ix.search({ q: "brein", type: "", tags: [] }).hits.length, 2); // five letters, one edit away
+    assert.equal(ix.search({ q: "brin", type: "", tags: [] }).hits.length, 0); // four letters: no fuzzy, not a prefix
     assert.equal(ix.search({ q: "min", type: "", tags: [] }).hits.length, 1); // prefix of "mind"
-    assert.equal(ix.search({ q: "mnd", type: "", tags: [] }).hits.length, 0); // no fuzzy under four letters
+    assert.equal(ix.search({ q: "mnd", type: "", tags: [] }).hits.length, 0);
+  });
+
+  test("filter-only order follows updated, including after a replace", () => {
+    const ix = build();
+    ix.put(item("Projects.md", { title: "Projects", updated: "2030-01-01T00:00:00Z" }));
+    assert.equal(ix.search({ q: "", type: "", tags: [] }).hits[0]!.item.path, "Projects.md");
   });
 
   test("put replaces, remove discards, clear empties", () => {
