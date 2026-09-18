@@ -1,6 +1,6 @@
 import { Events, Plugin, TFile, TFolder, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import { registerCommands } from "./commands.ts";
-import { derivePage, isPage, type PageItem } from "./derive.ts";
+import { deriveBody, derivePage, isPage, type PageItem } from "./derive.ts";
 import { PageIndex } from "./index.ts";
 import { PublicTxtSearchSettingTab } from "./settings-tab.ts";
 import { DEFAULT_SETTINGS, normalizeSettings, type PublicTxtSearchSettings } from "./settings.ts";
@@ -110,6 +110,19 @@ export default class PublicTxtSearchPlugin extends Plugin {
     this.index.recomputeTotals();
     this.indexReady = true;
     this.indexEvents.trigger("changed");
+  }
+
+  /** The searchable plain text of a page, read on demand for excerpts; null when the file is gone. */
+  async bodyFor(path: string): Promise<string | null> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) return null;
+    try {
+      const text = await this.app.vault.cachedRead(file);
+      return deriveBody(text, this.app.metadataCache.getFileCache(file), file.basename);
+    } catch (err) {
+      console.error(`PublicTxt Search: could not read ${path}`, err);
+      return null;
+    }
   }
 
   // ---- live updates -------------------------------------------------------------

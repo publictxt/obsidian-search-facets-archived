@@ -1,5 +1,5 @@
 import { ItemView, TFile, type HoverPopover, type PaneType, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
-import { card } from "./cards.ts";
+import { card, setExcerpt } from "./cards.ts";
 import { normalizeTag } from "./derive.ts";
 import { excerpt } from "./excerpt.ts";
 import { emptySearchState, type Counts, type SearchHit, type SearchState } from "./index.ts";
@@ -275,11 +275,9 @@ export class SearchView extends ItemView {
   /** A card for one hit, with the note-opening and preview behaviour the site's links get from the browser. */
   private resultCard(hit: SearchHit): HTMLLIElement {
     const { item } = hit;
-    const li = card(item, {
-      activeTags: new Set(this.state.tags),
-      onTag: (t) => this.toggleTag(t),
-      excerpt: this.hasQuery ? excerpt(item.body, hit.terms) : [],
-    });
+    const li = card(item, { activeTags: new Set(this.state.tags), onTag: (t) => this.toggleTag(t) });
+    // The card shows its summary at once; the excerpt replaces it when the body has been read.
+    if (this.hasQuery) void this.fillExcerpt(li, item.path, hit.terms);
 
     const title = li.querySelector<HTMLAnchorElement>("a.page-card-title");
     if (title) {
@@ -312,6 +310,13 @@ export class SearchView extends ItemView {
       });
     });
     return li;
+  }
+
+  private async fillExcerpt(li: HTMLLIElement, path: string, terms: string[]): Promise<void> {
+    const body = await this.plugin.bodyFor(path);
+    // The list may have been redrawn while the read was pending; a detached card is left alone.
+    if (body === null || !li.isConnected) return;
+    setExcerpt(li, excerpt(body, terms));
   }
 
   /**

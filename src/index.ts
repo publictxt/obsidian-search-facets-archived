@@ -90,11 +90,16 @@ export class PageIndex {
     return [...this.pages.values()];
   }
 
-  /** Add or replace a page. Totals are not recomputed; call `recomputeTotals()` after a batch. */
+  /**
+   * Add or replace a page. The body goes into the search index only; the
+   * record kept for results has it emptied, so memory does not scale with the
+   * vault's text (excerpts re-read the note). Totals are not recomputed; call
+   * `recomputeTotals()` after a batch.
+   */
   put(item: PageItem): void {
     if (this.pages.has(item.path)) this.mini.replace(item);
     else this.mini.add(item);
-    this.pages.set(item.path, item);
+    this.pages.set(item.path, { ...item, body: "" });
     this.updatedMs.set(item.path, parseTime(item.updated));
   }
 

@@ -88,6 +88,13 @@ describe("PageIndex", () => {
     assert.equal(ix.search({ q: "mnd", type: "", tags: [] }).hits.length, 0);
   });
 
+  test("the body is indexed but not kept on the stored record", () => {
+    const ix = build();
+    assert.equal(ix.get("wiki/brain.md")!.body, "");
+    assert.equal(ix.search({ q: "grey", type: "", tags: [] }).hits.length, 1);
+    assert.equal(ix.search({ q: "grey", type: "", tags: [] }).hits[0]!.item.body, "");
+  });
+
   test("filter-only order follows updated, including after a replace", () => {
     const ix = build();
     ix.put(item("Projects.md", { title: "Projects", updated: "2030-01-01T00:00:00Z" }));
