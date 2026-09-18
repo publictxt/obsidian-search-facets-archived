@@ -1,7 +1,7 @@
 import { Events, Plugin, TFile, TFolder, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import { derivePage, isPage, type PageItem } from "./derive.ts";
 import { PageIndex } from "./index.ts";
-import { DEFAULT_SETTINGS, type PublicTxtSearchSettings } from "./settings.ts";
+import { DEFAULT_SETTINGS, PublicTxtSearchSettingTab, type PublicTxtSearchSettings } from "./settings.ts";
 import { SearchView, VIEW_TYPE } from "./view.ts";
 
 const READ_BATCH = 64;
@@ -25,6 +25,7 @@ export default class PublicTxtSearchPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE, (leaf) => new SearchView(leaf, this));
     this.registerHoverLinkSource(VIEW_TYPE, { display: "PublicTxt Search", defaultMod: true });
+    this.addSettingTab(new PublicTxtSearchSettingTab(this.app, this));
 
     this.addRibbonIcon("search", "Open PublicTxt search", () => {
       void this.activateView();
