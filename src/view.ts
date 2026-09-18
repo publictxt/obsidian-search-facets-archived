@@ -1,5 +1,6 @@
-import { ItemView, type HoverPopover, type PaneType, type WorkspaceLeaf } from "obsidian";
+import { ItemView, type HoverPopover, type PaneType, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { card } from "./cards.ts";
+import { normalizeTag } from "./derive.ts";
 import { excerpt } from "./excerpt.ts";
 import { emptySearchState, sortedKeys, type Counts, type SearchHit, type SearchState } from "./index.ts";
 import type PublicTxtSearchPlugin from "./main.ts";
@@ -13,6 +14,21 @@ const NARROW_PX = 900;
 
 function paneFor(openIn: OpenIn): PaneType | false {
   return openIn === "current" ? false : openIn;
+}
+
+/** A search state from anything the workspace layout or a command hands us. */
+export function toSearchState(raw: unknown): SearchState {
+  const state = emptySearchState();
+  if (typeof raw !== "object" || raw === null) return state;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.q === "string") state.q = r.q;
+  if (typeof r.type === "string") state.type = r.type.trim();
+  const tags = Array.isArray(r.tags) ? r.tags : typeof r.tags === "string" ? [r.tags] : [];
+  for (const t of tags) {
+    const n = typeof t === "string" ? normalizeTag(t) : "";
+    if (n && !state.tags.includes(n)) state.tags.push(n);
+  }
+  return state;
 }
 
 export class SearchView extends ItemView {
@@ -39,6 +55,7 @@ export class SearchView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: PublicTxtSearchPlugin) {
     super(leaf);
     this.plugin = plugin;
+    this.navigation = true;
   }
 
   getViewType(): string {
@@ -51,6 +68,30 @@ export class SearchView extends ItemView {
 
   getIcon(): string {
     return "search";
+  }
+
+  // ---- state (the site keeps this in ?q=&type=&tag=) ----------------------------
+
+  getState(): Record<string, unknown> {
+    return { q: this.state.q, type: this.state.type, tags: [...this.state.tags] };
+  }
+
+  async setState(state: unknown, result: ViewStateResult): Promise<void> {
+    // Obsidian may call this before onOpen; the state is kept and drawn once the view exists.
+    // If the index is not built yet, run() shows "Indexing…" and the build's "changed" event re-runs it.
+    if (typeof state === "object" && state !== null && ("q" in state || "type" in state || "tags" in state)) {
+      this.state = toSearchState(state);
+      if (this.inputEl) this.inputEl.value = this.state.q;
+      this.run();
+    }
+    await super.setState(state, result);
+  }
+
+  /** Seed the search from a command; anything not given is cleared. */
+  setSearch(state: Partial<SearchState>): void {
+    this.state = toSearchState(state);
+    if (this.inputEl) this.inputEl.value = this.state.q;
+    this.run();
   }
 
   // ---- layout (from txt-hugo/layouts/search.html) ------------------------------
@@ -175,6 +216,7 @@ export class SearchView extends ItemView {
 
   run(): void {
     if (!this.listEl || !this.statusEl || !this.moreEl) return;
+    this.app.workspace.requestSaveLayout();
     if (!this.plugin.indexReady) {
       this.statusEl.setText("Indexing…");
       return;
