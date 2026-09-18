@@ -2,7 +2,7 @@ import { ItemView, TFile, type HoverPopover, type PaneType, type ViewStateResult
 import { card } from "./cards.ts";
 import { normalizeTag } from "./derive.ts";
 import { excerpt } from "./excerpt.ts";
-import { emptySearchState, sortedKeys, type Counts, type SearchHit, type SearchState } from "./index.ts";
+import { emptySearchState, type Counts, type SearchHit, type SearchState } from "./index.ts";
 import type PublicTxtSearchPlugin from "./main.ts";
 import type { OpenIn } from "./settings.ts";
 
@@ -14,6 +14,12 @@ const NARROW_PX = 900;
 
 function paneFor(openIn: OpenIn): PaneType | false {
   return openIn === "current" ? false : openIn;
+}
+
+/** The facet name of the chip a click landed on, or null. */
+function chipName(e: Event): string | null {
+  const b = (e.target as HTMLElement | null)?.closest<HTMLElement>("button[data-name]");
+  return b?.dataset.name ?? null;
 }
 
 /** A search state from anything the workspace layout or a command hands us. */
@@ -134,6 +140,17 @@ export class SearchView extends ItemView {
     const tagHeading = tagGroup.createEl("h3", { cls: "side-heading", text: "Tags " });
     this.tagHintEl = tagHeading.createSpan({ cls: "muted" });
     this.tagEl = tagGroup.createDiv({ cls: "chip-row" });
+    // One listener per row instead of one per chip; the rows are rebuilt on every run.
+    this.typeEl.addEventListener("click", (e) => {
+      const name = chipName(e);
+      if (name === null) return;
+      this.state.type = this.state.type === name ? "" : name;
+      this.stateChanged();
+    });
+    this.tagEl.addEventListener("click", (e) => {
+      const name = chipName(e);
+      if (name !== null) this.toggleTag(name);
+    });
 
     const results = layout.createEl("section", { cls: "search-results", attr: { "aria-live": "polite" } });
     this.statusEl = results.createEl("p", { cls: "muted search-status" });
@@ -171,30 +188,26 @@ export class SearchView extends ItemView {
     b.type = "button";
     b.className = "chip filter-chip" + (active ? " active" : "") + (count === 0 ? " empty" : "");
     b.setAttribute("aria-pressed", String(active));
+    b.dataset.name = name;
     b.append((kind === "tag" ? "#" : "") + name);
     const n = document.createElement("span");
     n.className = "count";
     n.textContent = String(count);
     b.append(n);
-    b.addEventListener("click", () => {
-      if (kind === "type") {
-        this.state.type = this.state.type === name ? "" : name;
-        this.stateChanged();
-      } else this.toggleTag(name);
-    });
     return b;
   }
 
   /** Every known chip, with its count within the current result set; order comes from the totals. */
   private renderFilters(counts: Counts): void {
     if (!this.typeEl || !this.tagEl || !this.tagHintEl) return;
-    const all = this.plugin.index.totals;
-    this.typeEl.replaceChildren(
-      ...sortedKeys(all.type).map((n) => this.chip("type", n, counts.type[n] ?? 0, this.state.type === n)),
-    );
-    this.tagEl.replaceChildren(
-      ...sortedKeys(all.tag).map((n) => this.chip("tag", n, counts.tag[n] ?? 0, this.state.tags.includes(n))),
-    );
+    const order = this.plugin.index.sortedTotals;
+    const selected = new Set(this.state.tags);
+    const types = document.createDocumentFragment();
+    for (const n of order.type) types.append(this.chip("type", n, counts.type[n] ?? 0, this.state.type === n));
+    this.typeEl.replaceChildren(types);
+    const tags = document.createDocumentFragment();
+    for (const n of order.tag) tags.append(this.chip("tag", n, counts.tag[n] ?? 0, selected.has(n)));
+    this.tagEl.replaceChildren(tags);
     this.tagHintEl.setText(this.state.tags.length > 1 ? "— all selected must match" : "");
   }
 

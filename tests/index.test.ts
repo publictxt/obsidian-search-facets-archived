@@ -36,7 +36,10 @@ describe("PageIndex", () => {
     assert.deepEqual(ix.totals.type, { wiki: 2, blog: 1, page: 1 });
     assert.deepEqual(ix.totals.tag, { brain: 1, sci: 3, mind: 1, blog: 1 });
     assert.deepEqual(sortedKeys(ix.totals.tag), ["sci", "blog", "brain", "mind"]);
+    assert.deepEqual(ix.sortedTotals, { type: ["wiki", "blog", "page"], tag: ["sci", "blog", "brain", "mind"] });
     assert.deepEqual(sortedKeys(undefined), []);
+    ix.clear();
+    assert.deepEqual(ix.sortedTotals, { type: [], tag: [] });
   });
 
   test("filter-only search lists everything, most recently updated first, unparseable last", () => {
