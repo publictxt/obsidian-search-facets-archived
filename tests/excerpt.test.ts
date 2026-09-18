@@ -1,31 +1,40 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { excerpt } from "../src/excerpt.ts";
+import { excerpt, type Segment } from "../src/excerpt.ts";
 
 const words = (n: number, prefix = "w") => Array.from({ length: n }, (_, i) => `${prefix}${i}`);
+/** Segments as a string with marked terms in brackets, for readable assertions. */
+const render = (segs: Segment[]) => segs.map((s) => (s.mark ? `[${s.text}]` : s.text)).join("");
 
 describe("excerpt", () => {
   test("marks the matched term with context either side", () => {
     const body = [...words(20), "Brain", ...words(20, "z")].join(" ");
-    const html = excerpt(body, ["brain"], 3);
-    assert.equal(html, "… w17 w18 w19 <mark>Brain</mark> z0 z1 z2 …");
+    assert.equal(render(excerpt(body, ["brain"], 3)), "… w17 w18 w19 [Brain] z0 z1 z2 …");
   });
 
   test("no ellipsis at the edges; every matched term in the window is marked", () => {
-    assert.equal(excerpt("the brain thinks about the brain", ["brain", "thinks"]), "the <mark>brain</mark> <mark>thinks</mark> about the <mark>brain</mark>");
+    assert.equal(render(excerpt("the brain thinks about the brain", ["brain", "thinks"])), "the [brain] [thinks] about the [brain]");
   });
 
-  test("matches inside punctuation and hashtags, escaping the rest", () => {
-    assert.equal(excerpt("see #info-politics <now>", ["politics"]), "see #info-<mark>politics</mark> &lt;now&gt;");
+  test("matches inside punctuation and hashtags; text is kept verbatim, not escaped", () => {
+    assert.equal(render(excerpt("see #info-politics <now>", ["politics"])), "see #info-[politics] <now>");
+  });
+
+  test("plain runs are merged into single segments", () => {
+    assert.deepEqual(excerpt("a b c", ["b"]), [
+      { text: "a ", mark: false },
+      { text: "b", mark: true },
+      { text: " c", mark: false },
+    ]);
   });
 
   test("empty when nothing matches or there is nothing to match", () => {
-    assert.equal(excerpt("nothing here", ["brain"]), "");
-    assert.equal(excerpt("", ["brain"]), "");
-    assert.equal(excerpt("some words", []), "");
+    assert.deepEqual(excerpt("nothing here", ["brain"]), []);
+    assert.deepEqual(excerpt("", ["brain"]), []);
+    assert.deepEqual(excerpt("some words", []), []);
   });
 
   test("terms are compared case-insensitively", () => {
-    assert.equal(excerpt("Free Software", ["FREE"]), "<mark>Free</mark> Software");
+    assert.equal(render(excerpt("Free Software", ["FREE"])), "[Free] Software");
   });
 });
